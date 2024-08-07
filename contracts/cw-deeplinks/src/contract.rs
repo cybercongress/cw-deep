@@ -5,8 +5,8 @@ use cw2::{get_contract_version, set_contract_version};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{Config, CONFIG, Deeplink, DEEPLINKS, ID};
-use crate::execute::{CYBERLINK_ID_MSG, execute_create_deeplink, execute_cyberlink, execute_delete_deeplink, execute_update_deeplink, execute_update_admins, execute_update_executors};
+use crate::state::{Config, CONFIG, DeeplinkState, DEEPLINKS, ID};
+use crate::execute::{CYBERLINK_ID_MSG, execute_create_deeplink, execute_cyberlink, execute_delete_deeplink, execute_update_deeplink, execute_update_admins, execute_update_executors, execute_create_deeplinks};
 use crate::query::{query_config, query_id};
 
 use cyber_std::CyberMsgWrapper;
@@ -35,7 +35,7 @@ pub fn instantiate(
     ID.save(deps.storage, &0)?;
 
     let id = ID.load(deps.storage)? + 1;
-    DEEPLINKS.save(deps.storage, id, &Deeplink{
+    DEEPLINKS.save(deps.storage, id, &DeeplinkState {
         type_: "Type".to_string(),
         from: "Any".to_string(),
         to: "Any".to_string(),
@@ -43,7 +43,7 @@ pub fn instantiate(
     ID.save(deps.storage, &id)?;
 
     let id = ID.load(deps.storage)? + 1;
-    DEEPLINKS.save(deps.storage, id, &Deeplink{
+    DEEPLINKS.save(deps.storage, id, &DeeplinkState {
         type_: "Any".to_string(),
         from: "Null".to_string(),
         to: "Null".to_string(),
@@ -65,7 +65,8 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::CreateDeeplink { type_, from, to } => execute_create_deeplink(deps, env, info, type_, from, to),
+        ExecuteMsg::CreateDeeplink { deeplink } => execute_create_deeplink(deps, env, info, deeplink),
+        ExecuteMsg::CreateDeeplinks { deeplinks } => execute_create_deeplinks(deps, env, info, deeplinks),
         ExecuteMsg::UpdateDeeplink { type_, from, to } => execute_update_deeplink(deps, env, info, type_, from, to),
         ExecuteMsg::DeleteDeeplink { id } => execute_delete_deeplink(deps, env, info, id),
         ExecuteMsg::UpdateAdmins { new_admins } => execute_update_admins(deps, env, info, new_admins),

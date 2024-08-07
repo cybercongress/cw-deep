@@ -1,9 +1,10 @@
 use cosmwasm_std::{attr, Deps, DepsMut, Env, MessageInfo, StdResult, SubMsg, Uint64};
 
 use crate::error::ContractError;
-use crate::state::{CONFIG, Deeplink, DEEPLINKS, ID};
+use crate::state::{CONFIG, DeeplinkState, DEEPLINKS, FROM_MAP, ID, TO_MAP, TYPE_MAP};
 use cyber_std::{create_cyberlink_msg, Link, CyberMsgWrapper};
 use crate::contract::map_validate;
+use crate::msg::Deeplink;
 
 type Response = cosmwasm_std::Response<CyberMsgWrapper>;
 pub const CYBERLINK_ID_MSG: u64 = 42;
@@ -28,46 +29,35 @@ fn validate_deeplink(
     }
 
     // Check if type exists
-    let type_exists = DEEPLINKS.range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .any(|item| item.map_or(false, |(_, deeplink)| deeplink.type_ == type_.clone()));
-    if !type_exists {
+    if !TYPE_MAP.has(deps.storage, type_.as_str()) {
         return Err(ContractError::TypeNotExists { type_: type_.clone() });
     }
 
     // Check if from exists
     if let Some(ref from) = from {
-        let from_exists = DEEPLINKS.range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-            .any(|item| item.map_or(false, |(_, deeplink)| deeplink.type_ == from.clone()));
-        if !from_exists {
+        if !FROM_MAP.has(deps.storage, from.as_str()) {
             return Err(ContractError::FromNotExists { from: from.clone() });
         }
     }
 
     // Check if to exists
     if let Some(ref to) = to {
-        let to_exists = DEEPLINKS.range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-            .any(|item| item.map_or(false, |(_, deeplink)| deeplink.type_ == to.clone()));
-        if !to_exists {
+        if !TO_MAP.has(deps.storage, to.as_str()) {
             return Err(ContractError::ToNotExists { to: to.clone() });
         }
     }
 
     // Additional validation for type conflicts
     if let (Some(ref from), Some(ref to)) = (&from, &to) {
-        let type_deeplink = DEEPLINKS.range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-            .find(|item| item.as_ref().map_or(false, |(_, deeplink)| deeplink.type_ == type_.clone()))
-            .map(|item| item.unwrap().1)
-            .unwrap();
-
-        let from_deeplink = DEEPLINKS.range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-            .find(|item| item.as_ref().map_or(false, |(_, deeplink)| deeplink.type_ == from.clone()))
-            .map(|item| item.unwrap().1)
-            .unwrap();
-
-        let to_deeplink = DEEPLINKS.range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-            .find(|item| item.as_ref().map_or(false, |(_, deeplink)| deeplink.type_ == to.clone()))
-            .map(|item| item.unwrap().1)
-            .unwrap();
+        let type_deeplink = DEEPLINKS.load(deps.storage,
+        TYPE_MAP.load(deps.storage, type_.as_str())?
+        )?;
+        let from_deeplink = DEEPLINKS.load(deps.storage,
+        FROM_MAP.load(deps.storage, from.as_str())?
+        )?;
+        let to_deeplink = DEEPLINKS.load(deps.storage,
+        TO_MAP.load(deps.storage, to.as_str())?
+        )?;
 
         if type_deeplink.from != "Any" && type_deeplink.from != from_deeplink.type_ {
             return Err(ContractError::TypeConflict {
@@ -98,30 +88,53 @@ fn validate_deeplink(
 
     Ok(())
 }
-pub fn execute_create_deeplink(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    type_: String,
-    from: Option<String>,
-    to: Option<String>,
-) -> Result<Response, ContractError> {
 
-    validate_deeplink(deps.as_ref(), &type_, &from, &to)?;
+fn create_deeplink(
+    deps: DepsMut,
+    deeplink: Deeplink
+) -> Result<u64, ContractError> {
+    validate_deeplink(deps.as_ref(), &deeplink.type_, &deeplink.from, &deeplink.to)?;
 
     // Generate new ID
     let id = ID.load(deps.storage)? + 1;
     ID.save(deps.storage, &id)?;
 
     // Save new Deeplink
-    let deeplink = Deeplink {
-        type_: type_.clone(),
-        from: from.unwrap_or_else(|| "Any".to_string()),
-        to: to.unwrap_or_else(|| "Any".to_string()),
+    let deeplink_state = DeeplinkState {
+        type_: deeplink.type_.clone(),
+        from: deeplink.from.unwrap_or_else(|| "Any".to_string()),
+        to: deeplink.to.unwrap_or_else(|| "Any".to_string()),
     };
-    DEEPLINKS.save(deps.storage, id, &deeplink)?;
+    DEEPLINKS.save(deps.storage, id, &deeplink_state)?;
 
-    Ok(Response::new().add_attributes(vec![attr("action", "create")]))
+    // Save to new maps
+    // Save to new maps
+    TYPE_MAP.save(deps.storage, deeplink_state.type_.as_str(), &id)?;
+    FROM_MAP.save(deps.storage, deeplink_state.from.as_str(), &id)?;
+    TO_MAP.save(deps.storage, deeplink_state.to.as_str(), &id)?;
+
+    Ok(id)
+}
+pub fn execute_create_deeplink(
+    deps: DepsMut,
+    _env: Env,
+    _info: MessageInfo,
+    deeplink: Deeplink
+) -> Result<Response, ContractError> {
+    create_deeplink(deps, deeplink)?;
+    Ok(Response::new().add_attributes(vec![attr("action", "create_deeplink")]))
+}
+
+pub fn execute_create_deeplinks(
+    mut deps: DepsMut,
+    _env: Env,
+    _info: MessageInfo,
+    deeplinks: Vec<Deeplink>
+) -> Result<Response, ContractError> {
+    for deeplink in deeplinks {
+        create_deeplink(deps.branch(), deeplink)?;
+    }
+    Ok(Response::new().add_attributes(vec![attr("action", "create_deeplinks")]))
 }
 
 pub fn execute_update_deeplink(

@@ -10,14 +10,23 @@ pub struct InstantiateMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct  Deeplink {
+    #[serde(rename = "type")]
+    pub type_: String,
+    pub from: Option<String>,
+    pub to: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     CreateDeeplink {
-        #[serde(rename = "type")]
-        type_: String,
-        from: Option<String>,
-        to: Option<String>,
+        deeplink: Deeplink,
     },
+    CreateDeeplinks {
+        deeplinks: Vec<Deeplink>,
+    },
+    // TODO update UpdateDeeplink
     UpdateDeeplink {
         #[serde(rename = "type")]
         type_: String,
