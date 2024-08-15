@@ -27,3 +27,4 @@ semver = "1"
 
 [dev-dependencies]
 cosmwasm-schema = { version = "1.0.0" }
+serde_json = "1.0.122"

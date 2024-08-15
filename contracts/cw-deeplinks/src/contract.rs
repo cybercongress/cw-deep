@@ -5,9 +5,9 @@ use cw2::{get_contract_version, set_contract_version};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{Config, CONFIG, DeeplinkState, DEEPLINKS, ID};
-use crate::execute::{CYBERLINK_ID_MSG, execute_create_deeplink, execute_cyberlink, execute_delete_deeplink, execute_update_deeplink, execute_update_admins, execute_update_executors, execute_create_deeplinks};
-use crate::query::{query_config, query_id};
+use crate::state::{Config, CONFIG, DeeplinkState, DEEPLINKS, ID, NAMED_DEEPLINKS};
+use crate::execute::{CYBERLINK_ID_MSG, execute_create_deeplink, execute_cyberlink, execute_delete_deeplink, execute_update_deeplink, execute_update_admins, execute_update_executors, execute_create_deeplinks, execute_create_named_deeplink};
+use crate::query::{query_config, query_id, query_last_id, query_state};
 
 use cyber_std::CyberMsgWrapper;
 use semver::Version;
@@ -35,20 +35,32 @@ pub fn instantiate(
     ID.save(deps.storage, &0)?;
 
     let id = ID.load(deps.storage)? + 1;
+    ID.save(deps.storage, &id)?;
     DEEPLINKS.save(deps.storage, id, &DeeplinkState {
         type_: "Type".to_string(),
         from: "Any".to_string(),
         to: "Any".to_string(),
     })?;
-    ID.save(deps.storage, &id)?;
+    NAMED_DEEPLINKS.save(deps.storage,
+     "Type", &DeeplinkState {
+        type_: "Type".to_string(),
+        from: "Any".to_string(),
+        to: "Any".to_string(),
+    })?;
 
     let id = ID.load(deps.storage)? + 1;
+    ID.save(deps.storage, &id)?;
     DEEPLINKS.save(deps.storage, id, &DeeplinkState {
         type_: "Any".to_string(),
         from: "Null".to_string(),
         to: "Null".to_string(),
     })?;
-    ID.save(deps.storage, &id)?;
+    NAMED_DEEPLINKS.save(deps.storage,
+     "Any", &DeeplinkState {
+        type_: "Type".to_string(),
+        from: "Null".to_string(),
+        to: "Null".to_string(),
+    })?;
 
     Ok(Response::default())
 }
@@ -65,6 +77,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::CreatedNamedDeeplink { name, deeplink } => execute_create_named_deeplink(deps, env, info, name, deeplink),
         ExecuteMsg::CreateDeeplink { deeplink } => execute_create_deeplink(deps, env, info, deeplink),
         ExecuteMsg::CreateDeeplinks { deeplinks } => execute_create_deeplinks(deps, env, info, deeplinks),
         ExecuteMsg::UpdateDeeplink { type_, from, to } => execute_update_deeplink(deps, env, info, type_, from, to),
@@ -78,8 +91,10 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
+        QueryMsg::LastId {} => to_binary(&query_last_id(deps)?),
+        QueryMsg::DebugState {} => to_binary(&query_state(deps)?),
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
-        QueryMsg::ReadDeeplink { id } => to_binary(&query_id(deps, id)?),
+        QueryMsg::Deeplink { id } => to_binary(&query_id(deps, id)?),
     }
 }
 

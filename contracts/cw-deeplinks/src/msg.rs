@@ -10,6 +10,14 @@ pub struct InstantiateMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct NamedDeeplink {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub type_: String,
+    pub from: Option<String>,
+    pub to: Option<String>,
+}
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct  Deeplink {
     #[serde(rename = "type")]
     pub type_: String,
@@ -20,6 +28,10 @@ pub struct  Deeplink {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    CreatedNamedDeeplink {
+        name: String,
+        deeplink: Deeplink,
+    },
     CreateDeeplink {
         deeplink: Deeplink,
     },
@@ -50,7 +62,9 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    ReadDeeplink {
+    LastId {},
+    DebugState {},
+    Deeplink {
         id: Uint64,
     },
     Config {},

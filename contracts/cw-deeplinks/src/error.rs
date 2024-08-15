@@ -3,6 +3,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
+    #[error("Deleted Deeplink: {id}")]
+    DeletedDeeplink { id: Uint64 },
+
     #[error("Particular links is not allowed id: {id}, from: {from}, to: {to}, type: {type_}")]
     InvalidDeeplink {id: Uint64, from: String, to: String, type_: String},
 
@@ -15,8 +18,15 @@ pub enum ContractError {
     #[error("To not exists: {to}")]
     ToNotExists { to: String },
 
-    #[error("Type conflict: id: {id}, type: {type_}, from: {from}, to: {to}, expected_from: {expected_from}, expected_to: {expected_to}, received_from: {received_from}, received_to: {received_to}")]
-    TypeConflict { id: Uint64, type_: String, from: String, to: String, expected_from: String, expected_to: String, received_from: String, received_to: String },
+    #[error("Type conflict \
+        link ( id: {id}, type: {type_}, from: {from}, to: {to} ),\
+        expected type: ( type: {expected_type}, from: {expected_from}, to: {expected_to} ),\
+        received_from: ( type: {received_type}, from: {received_from}, to: {received_to} )")]
+    TypeConflict {
+        id: String, type_: String, from: String, to: String,
+        expected_type: String, expected_from: String, expected_to: String,
+        received_type: String, received_from: String, received_to: String
+    },
 
     #[error("{0}")]
     Std(#[from] StdError),
