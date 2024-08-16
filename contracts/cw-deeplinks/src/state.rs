@@ -15,14 +15,14 @@ pub struct DeeplinkState {
 pub const DEEPLINKS_KEY: &str = "deeplinks";
 pub const DEEPLINKS: Map<u64, DeeplinkState> = Map::new(DEEPLINKS_KEY);
 
+pub const NAMED_DEEPLINKS_KEY: &str = "named_deeplinks";
+pub const NAMED_DEEPLINKS: Map<&str, DeeplinkState> = Map::new(NAMED_DEEPLINKS_KEY);
+
 pub const ID_KEY: &str = "id";
 pub const ID: Item<u64> = Item::new("ID_KEY");
 
 pub const DELETED_IDS_KEY: &str = "deleted_ids";
 pub const DELETED_IDS: Map<u64, bool> = Map::new(DELETED_IDS_KEY);
-
-pub const NAMED_DEEPLINKS_KEY: &str = "named_deeplinks";
-pub const NAMED_DEEPLINKS: Map<&str, DeeplinkState> = Map::new(NAMED_DEEPLINKS_KEY);
 
 pub const NUMBERS_VALUES_KEY: &str = "numbers_values";
 pub const NUMBERS_VALUES: Map<u64, (u64, u64)> = Map::new(NUMBERS_VALUES_KEY);

@@ -14,37 +14,6 @@ fn validate_deeplink(
     id: Option<String>,
     deeplink: Deeplink
 ) -> Result<(), ContractError> {
-    // let froms = FROM_MAP
-    //     .range(deps.storage, None, None, Ascending)
-    //     .map(|i| i.unwrap())
-    //     .collect::<Vec<(String, u64)>>();
-    //
-    // let tos = TO_MAP
-    //     .range(deps.storage, None, None, Ascending)
-    //     .map(|i| i.unwrap())
-    //     .collect::<Vec<(String, u64)>>();
-    //
-    // let types = TYPE_MAP
-    //     .range(deps.storage, None, None, Ascending)
-    //     .map(|i| i.unwrap())
-    //     .collect::<Vec<(String, u64)>>();
-
-    // NEW = { id?, type, from?, to? }
-    //
-    // if (NEW.from != NEW.to && (NEW.from = 0 || NEW.to = 0)) {
-    //     throw new Error(`Particular links is not allowed id: ${NEW.id}, from: ${NEW.from}, to: ${NEW.to}, type: ${NEW.type}.`);
-    // }
-    //
-    // Any = ? // id symbol "any link"
-    // type = select(NEW.type) // get { id?, type, from?, to? }
-    // from = select(NEW.from) // get { id?, type, from?, to? }
-    // to = select(NEW.to) // get { id?, type, from?, to? }
-    //
-    // if (!type) throw new Error(`Type not exists ${NEW.type}`);
-    // if (NEW.from && !from) throw new Error(`From not exists ${NEW.from}`);
-    // if (NEW.to && !to) throw new Error(`To not exists ${NEW.to}`);
-
-
     // Validation
     if deeplink.from != deeplink.to && (deeplink.from.is_none() || deeplink.to.is_none()) {
         return Err(ContractError::InvalidDeeplink {
@@ -55,8 +24,6 @@ fn validate_deeplink(
         });
     }
 
-    // let (mut stype_, mut sfrom, mut sto): (Option<String>, Option<String>, Option<String>) = (None, None, None);
-    // let (mut ntype_, mut nfrom, mut nto): (Option<u64>, Option<u64>, Option<u64>) = (None, None, None);
     let (mut dtype_, mut dfrom, mut dto): (Option<DeeplinkState>, Option<DeeplinkState>, Option<DeeplinkState>) = (None, None, None);
 
     dtype_ = NAMED_DEEPLINKS.may_load(deps.storage, deeplink.type_.as_str())?;
@@ -76,46 +43,8 @@ fn validate_deeplink(
         }
     }
 
-    // Check if type exists
-    // if !TYPE_MAP.has(deps.storage, type_.as_str()) {
-    //     return Err(ContractError::TypeNotExists { type_: type_.clone() });
-    // }
-    //
-    // // Check if from exists
-    // if let Some(ref from) = from {
-    //     if !FROM_MAP.has(deps.storage, from.as_str()) {
-    //         return Err(ContractError::FromNotExists { from: from.clone() });
-    //     }
-    // }
-    //
-    // // Check if to exists
-    // if let Some(ref to) = to {
-    //     if !TO_MAP.has(deps.storage, to.as_str()) {
-    //         return Err(ContractError::ToNotExists { to: to.clone() });
-    //     }
-    // }
-
-    // if (!!NEW.from && !!NEW.to) {
-    //     if (type.from !== Any && type.from !== from.type) {
-    //         throw new Error(`Type conflict link: { id: ${NEW.id}, type: ${NEW.type}, from: ${NEW.from}, to: ${NEW.to} } expected type: { type: ${typeLink.id}, from: ${typeLink.from}, to: ${typeLink.to} } received type: { type: ${typeLink.id}, from: ${fromLink.type}, to: ${toLink.type} }`);
-    //     }
-    //     if (type.to !== Any && type.to !== to.type) {
-    //         throw new Error(`Type conflict link: { id: ${NEW.id}, type: ${NEW.type}, from: ${NEW.from}, to: ${NEW.to} } expected type: { type: ${typeLink.id}, from: ${typeLink.from}, to: ${typeLink.to} } received type: { type: ${typeLink.id}, from: ${fromLink.type}, to: ${toLink.type} }`);
-    //     }
-    // }
-
-
     // Additional validation for type conflicts
     if let (Some(ref from), Some(ref to)) = (&deeplink.from, &deeplink.to) {
-        // let type_deeplink = DEEPLINKS.load(deps.storage,
-        // TYPE_MAP.load(deps.storage, type_.as_str())?
-        // )?;
-        // let from_deeplink = DEEPLINKS.load(deps.storage,
-        // FROM_MAP.load(deps.storage, from.as_str())?
-        // )?;
-        // let to_deeplink = DEEPLINKS.load(deps.storage,
-        // TO_MAP.load(deps.storage, to.as_str())?
-        // )?;
         if dtype_.clone().unwrap().from.ne(&"Any") && dtype_.clone().unwrap().from.ne(&dfrom.clone().unwrap().type_) {
             return Err(ContractError::TypeConflict {
                 id: id.unwrap_or_else(|| "_".to_string()),
@@ -145,32 +74,6 @@ fn validate_deeplink(
                 received_to: dto.clone().unwrap().type_,
             });
         }
-
-        // if type_deeplink.from != "Any" && type_deeplink.from != from_deeplink.type_ {
-        //     return Err(ContractError::TypeConflict {
-        //         id: Uint64::zero(),
-        //         type_: type_.clone(),
-        //         from: from.clone(),
-        //         to: to.clone(),
-        //         expected_from: type_deeplink.from,
-        //         expected_to: type_deeplink.to,
-        //         received_from: from_deeplink.type_,
-        //         received_to: to_deeplink.type_,
-        //     });
-        // }
-        //
-        // if type_deeplink.to != "Any" && type_deeplink.to != to_deeplink.type_ {
-        //     return Err(ContractError::TypeConflict {
-        //         id: Uint64::zero(),
-        //         type_: type_.clone(),
-        //         from: from.clone(),
-        //         to: to.clone(),
-        //         expected_from: type_deeplink.from,
-        //         expected_to: type_deeplink.to,
-        //         received_from: from_deeplink.type_,
-        //         received_to: to_deeplink.type_,
-        //     });
-        // }
     }
 
     Ok(())
@@ -190,17 +93,10 @@ fn create_deeplink(
     let type_ = deeplink.clone().type_;
     let deeplink_state = DeeplinkState {
         type_: deeplink.type_.clone(),
-        from: deeplink.from.unwrap_or_else(|| type_.clone()),
-        to: deeplink.to.unwrap_or_else(|| type_),
-        // from: deeplink.from.unwrap_or_else(|| "Any".to_string()),
-        // to: deeplink.to.unwrap_or_else(|| "Any".to_string()),
+        from: deeplink.from.unwrap_or_else(|| "Any".to_string()),
+        to: deeplink.to.unwrap_or_else(|| "Any".to_string()),
     };
     DEEPLINKS.save(deps.storage, id, &deeplink_state)?;
-
-    // Save to new maps
-    // TYPE_MAP.save(deps.storage, deeplink_state.type_.as_str(), &id)?;
-    // FROM_MAP.save(deps.storage, deeplink_state.from.as_str(), &id)?;
-    // TO_MAP.save(deps.storage, deeplink_state.to.as_str(), &id)?;
 
     Ok(id)
 }
@@ -227,33 +123,12 @@ pub fn execute_create_named_deeplink(
     // let type_ = deeplink.clone().type_;
     let deeplink_state = DeeplinkState {
         type_: deeplink.type_.clone(),
-        // from: deeplink.from.unwrap_or_else(|| type_.clone()),
-        // to: deeplink.to.unwrap_or_else(|| type_),
         from: deeplink.from.unwrap_or_else(|| "Any".to_string()),
         to: deeplink.to.unwrap_or_else(|| "Any".to_string()),
     };
     DEEPLINKS.save(deps.storage, id, &deeplink_state)?;
 
     NAMED_DEEPLINKS.save(deps.storage, name.as_str(), &deeplink_state)?;
-
-    // Save to new maps
-    // TYPE_MAP.save(deps.storage, deeplink_state.type_.as_str(), &id)?;
-    // FROM_MAP.save(deps.storage, deeplink_state.from.as_str(), &id)?;
-    // TO_MAP.save(deps.storage, deeplink_state.to.as_str(), &id)?;
-
-    // if !TYPE_MAP.has(deps.storage, deeplink_state.type_.as_str()) {
-    //     TYPE_MAP.save(deps.storage, deeplink_state.type_.as_str(), &id)?;
-    // }
-    // if !FROM_MAP.has(deps.storage, deeplink_state.from.as_str()) {
-    //     FROM_MAP.save(deps.storage, deeplink_state.from.as_str(), &id)?;
-    // }
-    // if !TO_MAP.has(deps.storage, deeplink_state.to.as_str()) {
-    //     TO_MAP.save(deps.storage, deeplink_state.to.as_str(), &id)?;
-    // }
-    //
-    // if !NAMED_DEEPLINKS.has(deps.storage, name.as_str()) {
-    //     NAMED_DEEPLINKS.save(deps.storage, name.as_str(), &deeplink_state)?;
-    // }
 
     Ok(Response::new().add_attributes(vec![attr("action", "create_named_deeplink")]))
 }
